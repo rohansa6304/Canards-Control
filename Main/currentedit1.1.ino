@@ -1,4 +1,4 @@
-//v4
+//v5
 #include <Dynamixel2Arduino.h>
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
