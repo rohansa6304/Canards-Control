@@ -29,6 +29,10 @@ float curr_altitude = 0;
 float temperature = 0;
 float velocity = 0;
 
+float prev_roll_rate = 0; //for roll_reversal_check
+float prev_deflection = 0;
+float curr_deflection = 0;
+
 float kp = 0; //pi controller variables
 float ki = 0;  
 float prev_int = 0;  
@@ -124,6 +128,27 @@ bool check_inclination(void) {
     return 0;
   }
 }
+
+bool roll_reversal_check(void) { //failsafe to check if change in canards is positively or negatively affecting roll
+  getgyro();
+  curr_roll_rate = rollrate;
+  float delta_roll_rate = curr_roll_rate - prev_roll_rate;
+  float delta_deflection = curr_deflection; //curr_deflection is the change in deflection in s domain globalised from calculate_delta function
+  float delta_roll_by_delta_def;
+  if (delta_deflection != 0) {
+    delta_roll_by_delta_def = delta_roll_rate/delta_deflection;
+    if (delta_roll_by_delta_def < 0) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
+  }
+  else {
+    return 1;
+  }
+}
+
 float calcpid(float err) { //calculate ut
   float ut = 0;
   float integral = (samptime/2)*(err + 2*error[1] + error[2]);
@@ -160,6 +185,7 @@ float calculate_delta(float vel, float s) { //calculate canard deflection
     ans = 0;
     return ans;
   }
+  curr_deflection = ans;
 }
 void pivalues(float vel) { //change kp ki values 
   if (vel<=266.96 && vel>216.12) {
@@ -244,6 +270,8 @@ void loop() {
     if (check_altitude()) { //checking if the altitude is higher than altitude at burnout
       if (check_inclination()) { //checking if inclination is less than or equal to 15 degrees
       } 
+      if (roll_reversal_check()) {
+      }
     }
   }
 }
