@@ -23,6 +23,7 @@ float accx,accy,accz;
 float pitchangle,yawangle; //initial calculation based only on acceleration data
 float filteredpitch = 0,filteredyaw = 0,filteredpitcherror = 4,filteredyawerror = 4; //intial values of filtered angles, standard deviation of angle is kept at 2
 float filteroutput[2] = {0,0};
+float inclination;
 
 float prev_altitude = 0;
 float curr_altitude = 0;
@@ -33,11 +34,13 @@ float prev_roll_rate = 0; //for roll_reversal_check
 float prev_deflection = 0;
 float curr_deflection = 0;
 
+int load[4] = {0,0,0,0};
+
 float kp = 0; //pi controller variables
 float ki = 0;  
 float prev_int = 0;  
 float error[2] = {0,0};  
-#define samptime 0.1
+#define samptime 0.05
 
 void anglefilter(float filterstate, float filtererror, float gyrorate, float accelangle) { //filterstate = angle from filter
   filterstate = filterstate + 0.05*gyrorate; //initial guess 
@@ -108,9 +111,6 @@ bool check_altitude(void) {
 }
 
 bool check_inclination(void) {
-  getgyro();
-  getaccel();
-  getangle();
   pitchrate-=pitcherror;
   yawrate-=yawerror;
   rollrate-=rollerror;
@@ -120,8 +120,12 @@ bool check_inclination(void) {
   anglefilter(filteredyaw,filteredyawerror,yawrate,yawangle);
   filteredyaw = filteroutput[0];
   filteredyawerror = filteroutput[1];
-  float inclination = atan(sqrt(tan(filteredpitch)*tan(filteredpitch)+tan(filteredyaw)*tan(filteredyaw)));
-  if (inclination<=15) {
+  inclination = atan(sqrt((tan(filteredpitch/57.296)*tan(filteredpitch/57.296))+(tan(filteredyaw/57.296)*tan(filteredyaw/57.296))));
+  //updating velocity and altitude variables
+  velocity = (curr_altitude-prev_altitude)/0.05;
+  velocity = velocity/cos(inclination);
+  prev_altitude = curr_altitude;
+  if ((inclination*57.296)<=15) {
     return 1;
   }
   else {
@@ -129,14 +133,20 @@ bool check_inclination(void) {
   }
 }
 
+void check_load(void) {
+  for (int i=1;i<5;i++) {
+    load[i-1] = dxl.readControlTableItem(63, i)/10;
+  }
+  
+}
+
 bool roll_reversal_check(void) { //failsafe to check if change in canards is positively or negatively affecting roll
-  getgyro();
-  curr_roll_rate = rollrate;
+  float curr_roll_rate = rollrate;
   float delta_roll_rate = curr_roll_rate - prev_roll_rate;
-  float delta_deflection = curr_deflection; //curr_deflection is the change in deflection in s domain globalised from calculate_delta function
   float delta_roll_by_delta_def;
-  if (delta_deflection != 0) {
-    delta_roll_by_delta_def = delta_roll_rate/delta_deflection;
+  prev_roll_rate = curr_roll_rate;
+  if (prev_deflection != 0) {
+    delta_roll_by_delta_def = delta_roll_rate/prev_deflection;
     if (delta_roll_by_delta_def < 0) {
       return 1;
     }
@@ -267,11 +277,14 @@ void loop() {
   unsigned long currentmillis = millis();
   if (currentmillis-previousmillis>=50) { //checking if 50ms has passed since the beginning of the last iteration
     previousmillis = currentmillis;
+    getgyro();
+    getaccel();
+    getangle();
     if (check_altitude()) { //checking if the altitude is higher than altitude at burnout
       if (check_inclination()) { //checking if inclination is less than or equal to 15 degrees
-      } 
-      if (roll_reversal_check()) {
+        if (roll_reversal_check()) {
       }
+      } 
     }
   }
 }
