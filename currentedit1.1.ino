@@ -147,9 +147,6 @@ bool roll_reversal_check(void) { //failsafe to check if change in canards is pos
   else {
     return 1;
   }
-
-  
-
 }
 
 float calcpid(float err) { //calculate ut
