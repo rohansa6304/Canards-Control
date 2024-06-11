@@ -1,4 +1,9 @@
 #include <Wire.h>
+#include <Dynamixel2Arduino.h>
+
+Dynamixel2Arduino dxl(Serial1, -1);
+int prevpos = 0;
+
 unsigned long previousmillis = 0;
 float pitchrate,yawrate,rollrate;
 float pitcherror,yawerror,rollerror;
@@ -78,6 +83,22 @@ void setup() {
   pitcherror/=2000;
   yawerror/=2000;
   rollerror/=2000;
+  Serial1.begin(57600);
+  dxl.begin(57600);
+  dxl.setPortProtocolVersion(2.0);
+  for (int i=1;i<5;i++) {
+    dxl.torqueOff(i);
+    dxl.setOperatingMode(i, OP_EXTENDED_POSITION);
+    dxl.torqueOn(i);
+    dxl.setGoalPosition(i, 0);
+    delay(200);
+    dxl.setGoalPosition(i, 512);
+    delay(200);
+    dxl.setGoalPosition(i, -512);
+    delay(400);
+    dxl.setGoalPosition(i, 0);
+    delay(200);
+  }
 }
 void loop() {
   unsigned long currentmillis = millis();
@@ -102,5 +123,11 @@ void loop() {
     float inclination = atan(sqrt((tan(filteredpitch/57.296)*tan(filteredpitch/57.296))+(tan(filteredyaw/57.296)*tan(filteredyaw/57.296))));
     Serial.print(" Inclination:");
     Serial.println(inclination*57.296);
+    if ((inclination*57.296)<15.0) {
+      for (int i=0;i<4;i++) {
+      dxl.setGoalPosition(i+1, prevpos+50);
+      }
+    }
+    prevpos = dxl.getPresentPosition(1);
   }
 }
