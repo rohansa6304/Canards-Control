@@ -116,13 +116,17 @@ void loop() {
     anglefilter(filteredyaw,filteredyawerror,yawrate,yawangle);
     filteredyaw = filteroutput[0];
     filteredyawerror = filteroutput[1];
+    float pitch_corrected = filteredpitch - 1.2;
+    float yaw_corrected = filteredyaw + 4.3;
     Serial.print("Pitch:");
-    Serial.print(filteredpitch);
+    Serial.print(pitch_corrected);
     Serial.print(" Yaw:");
-    Serial.print(filteredyaw);
-    float inclination = atan(sqrt((tan(filteredpitch/57.296)*tan(filteredpitch/57.296))+(tan(filteredyaw/57.296)*tan(filteredyaw/57.296))));
+    Serial.print(yaw_corrected);
+    float inclination = atan(sqrt((tan(pitch_corrected/57.296)*tan(pitch_corrected/57.296))+(tan(yaw_corrected/57.296)*tan(yaw_corrected/57.296))));
     Serial.print(" Inclination:");
+    // float inclination_corrected = inclination*57.296 - 4;
     Serial.println(inclination*57.296);
+    //Serial.println(inclination_corrected);
     if ((inclination*57.296)<15.0) {
       for (int i=0;i<4;i++) {
       dxl.setGoalPosition(i+1, prevpos+50);
@@ -131,3 +135,4 @@ void loop() {
     prevpos = dxl.getPresentPosition(1);
   }
 }
+
